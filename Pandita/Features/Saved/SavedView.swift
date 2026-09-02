@@ -37,6 +37,9 @@ struct SavedView: View {
                 }
             }
             .navigationTitle(AppTab.saved.title)
+            // Inline, so the title sits on the same row as the language control
+            // rather than stacking below it.
+            .navigationBarTitleDisplayMode(.inline)
             .toolbar {
                 ToolbarItem(placement: .topBarTrailing) { LanguageMenu() }
                 if !verses.isEmpty {

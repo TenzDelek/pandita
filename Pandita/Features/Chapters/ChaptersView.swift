@@ -29,6 +29,9 @@ struct ChaptersView: View {
                 }
             }
             .navigationTitle(AppTab.chapters.title)
+            // Inline, so the title sits on the same row as the language control
+            // rather than stacking below it.
+            .navigationBarTitleDisplayMode(.inline)
             .navigationDestination(for: Chapter.self) { ChapterDetailView(chapter: $0) }
             .searchable(text: $query, prompt: "Search all languages")
             .toolbar { ToolbarItem(placement: .topBarTrailing) { LanguageMenu() } }

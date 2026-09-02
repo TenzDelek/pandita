@@ -90,6 +90,21 @@ its stacked glyphs, English in a serif face, Chinese between the two. Search run
 at once and returns matching verses rather than whole chapters, which is the only useful shape at
 457 verses.
 
+## Artwork
+
+The Today hero is one of seven illustrations, rotated by calendar day the same way the verse is —
+deterministic, so it stays put all day and nothing needs storing. The art carries no meaning tied to
+a particular verse; nothing in the text maps onto it, so the pairing is deliberately just a rotation.
+
+The card is editorial rather than glass: artwork runs full-bleed and fades into a dark tone taken
+from that illustration's own palette, with the verse set in white over the faded half. A frosted
+panel here would hide the art it exists to show — glass stays on the controls, where it belongs.
+Each case carries its own `fadeColor` so the fade reads as part of the image, not a grey wash over
+it.
+
+To add a piece: drop an imageset into `Assets.xcassets` and add a case to `HeroArtwork` whose raw
+value is the asset name. `HeroArtworkTests` checks the rotation still covers every case.
+
 ## Architecture
 
 `ContentRepository` is the seam between the app and its data. Today the only real implementation is

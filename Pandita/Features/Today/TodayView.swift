@@ -37,6 +37,9 @@ struct TodayView: View {
             }
             .frame(maxWidth: .infinity, maxHeight: .infinity)
             .navigationTitle(AppTab.today.title)
+            // Inline, so the title sits on the same row as the language control
+            // rather than stacking below it.
+            .navigationBarTitleDisplayMode(.inline)
             .toolbar { ToolbarItem(placement: .topBarTrailing) { LanguageMenu() } }
         }
     }
@@ -65,34 +68,42 @@ struct TodayView: View {
         }
     }
 
+    /// An editorial card: the day's artwork full-bleed, fading into its own dark
+    /// tone, with the verse sitting on the faded half. Glass is wrong here — a
+    /// frosted panel over illustration hides the art it is meant to show.
     private func hero(for verse: Verse) -> some View {
-        GlassEffectContainer(spacing: 14) {
-            VStack(alignment: .leading, spacing: 18) {
-                GlassCard {
-                    VStack(alignment: .leading, spacing: 14) {
-                        HStack {
-                            Text(now, format: .dateTime.weekday(.wide).month(.wide).day())
-                            Spacer()
-                            Text("Verse \(verse.id)")
-                        }
-                        .font(.footnote.weight(.semibold))
-                        .textCase(.uppercase)
-                        .foregroundStyle(.secondary)
+        let artwork = HeroArtwork.artwork(for: now)
 
-                        VerseText(text: verse.text(in: settings.primary), language: settings.primary)
+        return VStack(alignment: .leading, spacing: 14) {
+            // Keeps the top of the card as unobstructed artwork, whatever the
+            // verse length below turns out to be.
+            Spacer(minLength: 170)
 
-                        if let secondary = settings.secondary {
-                            Divider().opacity(0.4)
-                            VerseText(
-                                text: verse.text(in: secondary),
-                                language: secondary,
-                                isSecondary: true
-                            )
-                        }
-                    }
-                }
-                .glassEffectID("verse", in: glassNamespace)
+            HStack {
+                Text(now, format: .dateTime.weekday(.wide).month(.wide).day())
+                Spacer()
+                Text("Verse \(verse.id)")
+            }
+            .font(.footnote.weight(.semibold))
+            .textCase(.uppercase)
+            .foregroundStyle(.white.opacity(0.75))
 
+            VerseText(
+                text: verse.text(in: settings.primary),
+                language: settings.primary,
+                tint: .white
+            )
+
+            if let secondary = settings.secondary {
+                VerseText(
+                    text: verse.text(in: secondary),
+                    language: secondary,
+                    isSecondary: true,
+                    tint: .white
+                )
+            }
+
+            GlassEffectContainer(spacing: 12) {
                 HStack(spacing: 12) {
                     SaveButton(verseID: verse.id, showsLabel: true)
                         .buttonStyle(.glass)
@@ -105,12 +116,32 @@ struct TodayView: View {
                     .glassEffectID("share", in: glassNamespace)
                 }
             }
+            .tint(.white)
+            .padding(.top, 4)
         }
-        .padding(.vertical, 24)
-        .frame(maxWidth: .infinity)
-        .background {
-            Theme.heroGradient.clipShape(.rect(cornerRadius: 32))
-        }
+        .padding(20)
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .background { background(for: artwork) }
+        .clipShape(.rect(cornerRadius: 28))
+    }
+
+    private func background(for artwork: HeroArtwork) -> some View {
+        artwork.image
+            .resizable()
+            .aspectRatio(contentMode: .fill)
+            .overlay {
+                LinearGradient(
+                    stops: [
+                        .init(color: artwork.fadeColor.opacity(0), location: 0),
+                        .init(color: artwork.fadeColor.opacity(0.55), location: 0.30),
+                        .init(color: artwork.fadeColor.opacity(0.94), location: 0.52),
+                        .init(color: artwork.fadeColor, location: 1)
+                    ],
+                    startPoint: .top,
+                    endPoint: .bottom
+                )
+            }
+            .accessibilityHidden(true)
     }
 
     /// Shares whatever the reader is actually looking at, both languages included.
