@@ -22,7 +22,7 @@ struct SavedView: View {
                     ScrollView {
                         LazyVStack(spacing: Theme.Metrics.stackSpacing) {
                             ForEach(verses) { verse in
-                                VerseCard(verse: verse, showsChapterCaption: caption(for: verse))
+                                VerseCard(verse: verse, caption: "Ch. \(verse.chapter) · Verse \(verse.id)")
                                     .contextMenu {
                                         Button("Remove", systemImage: "bookmark.slash", role: .destructive) {
                                             withAnimation { saved.remove(verse.id) }
@@ -38,6 +38,7 @@ struct SavedView: View {
             }
             .navigationTitle(AppTab.saved.title)
             .toolbar {
+                ToolbarItem(placement: .topBarTrailing) { LanguageMenu() }
                 if !verses.isEmpty {
                     ToolbarItem(placement: .topBarTrailing) {
                         Button("Remove All", systemImage: "trash", role: .destructive) {
@@ -49,17 +50,13 @@ struct SavedView: View {
             }
         }
     }
-
-    private func caption(for verse: Verse) -> String? {
-        guard let chapter = library.library.chapter(containing: verse.id) else { return nil }
-        return "Ch. \(chapter.number) · Verse \(verse.number)"
-    }
 }
 
 #Preview("With saves") {
     SavedView()
         .environment(LibraryStore.preview())
-        .environment(SavedStore.preview(saving: ["v-1-1", "v-2-2"]))
+        .environment(SavedStore.preview(saving: [1, 4]))
+        .environment(ReadingSettings.preview())
         .tint(Theme.crimson)
 }
 
@@ -67,5 +64,6 @@ struct SavedView: View {
     SavedView()
         .environment(LibraryStore.preview())
         .environment(SavedStore.preview())
+        .environment(ReadingSettings.preview())
         .tint(Theme.crimson)
 }

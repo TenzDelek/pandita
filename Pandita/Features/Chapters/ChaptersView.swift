@@ -1,80 +1,99 @@
 import SwiftUI
 
-/// The table of contents.
+/// The table of contents, and search across all three languages.
 struct ChaptersView: View {
     @Environment(LibraryStore.self) private var library
+    @Environment(ReadingSettings.self) private var settings
+
     @State private var query = ""
 
-    private var chapters: [Chapter] {
-        let all = library.library.chapters
-        let term = query.trimmingCharacters(in: .whitespacesAndNewlines)
-        guard !term.isEmpty else { return all }
-        return all.filter { chapter in
-            chapter.title.localizedStandardContains(term)
-                || (chapter.subtitle?.localizedStandardContains(term) ?? false)
-                || chapter.verses.contains { $0.text.localizedStandardContains(term) }
-        }
+    private var trimmedQuery: String {
+        query.trimmingCharacters(in: .whitespacesAndNewlines)
+    }
+
+    private var isSearching: Bool { !trimmedQuery.isEmpty }
+
+    /// With 457 verses, matching whole chapters is close to useless — searching
+    /// returns the verses themselves.
+    private var results: [Verse] {
+        library.library.search(trimmedQuery)
     }
 
     var body: some View {
         NavigationStack {
-            List {
-                ForEach(chapters) { chapter in
-                    NavigationLink(value: chapter) {
-                        ChapterRow(chapter: chapter)
-                    }
+            Group {
+                if isSearching {
+                    searchResults
+                } else {
+                    chapterList
                 }
             }
-            .listStyle(.insetGrouped)
             .navigationTitle(AppTab.chapters.title)
             .navigationDestination(for: Chapter.self) { ChapterDetailView(chapter: $0) }
-            .searchable(text: $query, prompt: "Search chapters and verses")
-            .overlay {
-                if chapters.isEmpty {
-                    emptyState
+            .searchable(text: $query, prompt: "Search all languages")
+            .toolbar { ToolbarItem(placement: .topBarTrailing) { LanguageMenu() } }
+        }
+    }
+
+    private var chapterList: some View {
+        List {
+            ForEach(library.library.chapters) { chapter in
+                NavigationLink(value: chapter) {
+                    ChapterRow(chapter: chapter, language: settings.primary)
+                }
+            }
+        }
+        .listStyle(.insetGrouped)
+        .overlay {
+            if library.library.isEmpty {
+                if library.isLoading {
+                    ProgressView().controlSize(.large)
+                } else {
+                    ContentUnavailableView(
+                        "No chapters",
+                        systemImage: "book.closed",
+                        description: Text("content.json has no chapters in it.")
+                    )
                 }
             }
         }
     }
 
     @ViewBuilder
-    private var emptyState: some View {
-        if library.isLoading {
-            ProgressView().controlSize(.large)
-        } else if !query.isEmpty {
-            ContentUnavailableView.search(text: query)
+    private var searchResults: some View {
+        if results.isEmpty {
+            ContentUnavailableView.search(text: trimmedQuery)
         } else {
-            ContentUnavailableView(
-                "No chapters yet",
-                systemImage: "book.closed",
-                description: Text("Add chapters to content.json to fill the library.")
-            )
+            ScrollView {
+                LazyVStack(spacing: Theme.Metrics.stackSpacing) {
+                    ForEach(results) { verse in
+                        VerseCard(verse: verse, caption: "Ch. \(verse.chapter) · Verse \(verse.id)")
+                    }
+                }
+                .padding(.horizontal)
+                .padding(.bottom, 32)
+            }
+            .scrollEdgeEffectStyle(.soft, for: .top)
         }
     }
 }
 
 private struct ChapterRow: View {
     let chapter: Chapter
+    let language: ReadingLanguage
 
     var body: some View {
-        HStack(spacing: 14) {
-            Text("\(chapter.number)")
-                .font(.headline.monospacedDigit())
-                .foregroundStyle(Theme.crimson)
-                .frame(width: 32, alignment: .center)
+        VStack(alignment: .leading, spacing: 5) {
+            // The title names its own chapter number in every language, so no
+            // separate number badge here.
+            Text(chapter.title.text(in: language))
+                .font(language == .tibetan ? language.verseFont(size: 17) : .headline)
+                .lineSpacing(language == .tibetan ? 8 : 0)
+                .foregroundStyle(.primary)
 
-            VStack(alignment: .leading, spacing: 3) {
-                Text(chapter.title)
-                    .font(.headline)
-                if let subtitle = chapter.subtitle {
-                    Text(subtitle)
-                        .font(.subheadline)
-                        .foregroundStyle(.secondary)
-                }
-                Text("^[\(chapter.verses.count) verse](inflect: true)")
-                    .font(.caption)
-                    .foregroundStyle(.tertiary)
-            }
+            Text("Verses \(chapter.verseRange.formatted) · ^[\(chapter.verses.count) verse](inflect: true)")
+                .font(.caption)
+                .foregroundStyle(.secondary)
         }
         .padding(.vertical, 4)
     }
@@ -84,5 +103,6 @@ private struct ChapterRow: View {
     ChaptersView()
         .environment(LibraryStore.preview())
         .environment(SavedStore.preview())
+        .environment(ReadingSettings.preview())
         .tint(Theme.crimson)
 }

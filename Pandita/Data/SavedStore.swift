@@ -3,7 +3,8 @@ import Observation
 
 /// Bookmarked verses, newest first, persisted locally in `UserDefaults`.
 ///
-/// There is no backend: this is the only writable state in the app.
+/// Verses are keyed by their global number, which is stable across content
+/// revisions. There is no backend: this is the only writable state in the app.
 @MainActor
 @Observable
 final class SavedStore {
@@ -15,8 +16,18 @@ final class SavedStore {
 
     init(defaults: UserDefaults = .standard) {
         self.defaults = defaults
-        self.savedVerseIDs = defaults.stringArray(forKey: Self.storageKey) ?? []
+
+        if let ids = defaults.array(forKey: Self.storageKey) as? [Int] {
+            self.savedVerseIDs = ids
+        } else {
+            // Verse ids used to be strings. Nothing maps those onto the real
+            // text, so drop the key rather than leave it to fail every launch.
+            self.savedVerseIDs = []
+            defaults.removeObject(forKey: Self.storageKey)
+        }
     }
+
+    var isEmpty: Bool { savedVerseIDs.isEmpty }
 
     func isSaved(_ verseID: Verse.ID) -> Bool {
         savedVerseIDs.contains(verseID)
@@ -43,7 +54,7 @@ final class SavedStore {
         persist()
     }
 
-    /// Saved verses resolved against the current text, dropping IDs that no longer exist.
+    /// Saved verses resolved against the current text, dropping ids that no longer exist.
     func savedVerses(in library: Library) -> [Verse] {
         savedVerseIDs.compactMap { library.verse(id: $0) }
     }

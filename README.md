@@ -1,78 +1,19 @@
 # Pandita
 
 A SwiftUI reader for iPhone. Three tabs — **Today**, **Chapters**, **Saved** — built against the
-iOS 26 SDK so it picks up Liquid Glass natively. There is no backend: all text is decoded from a
-JSON file in the app bundle, and the only writable state is local bookmarks.
+iOS 26 SDK so it picks up Liquid Glass natively.
+
+The text is the *Sakya Legshé*, 457 verses in nine chapters, carried in Tibetan, English, and
+Chinese. There is no backend: everything is decoded from a JSON file in the app bundle, and the
+only writable state is the reader's bookmarks and language choice.
 
 ## Requirements
 
 - Xcode 26 or later
 - iOS 26.0 deployment target (Liquid Glass APIs)
 - Swift 6 language mode, strict concurrency
-- A free or paid Apple Developer account (required to run on a physical iPhone)
 
-## Run on a physical iPhone
-
-Use **Xcode** — not Cursor — to build and install on a device.
-
-### 1. Prepare your iPhone
-
-1. Connect the iPhone to your Mac with a USB cable.
-2. Unlock the phone and tap **Trust This Computer** if prompted.
-3. On the iPhone, go to **Settings → Privacy & Security → Developer Mode** and turn it on (restart
-   if asked).
-
-### 2. Open the project in Xcode
-
-```bash
-open Pandita.xcodeproj
-```
-
-### 3. Configure signing
-
-1. Select the **Pandita** project in the navigator, then the **Pandita** target.
-2. Open **Signing & Capabilities**.
-3. Check **Automatically manage signing**.
-4. Choose your **Team** (sign in via **Xcode → Settings → Accounts** if needed).
-5. Confirm the bundle identifier is `com.tenzindelek.Pandita`.
-
-Xcode creates a development certificate and provisioning profile for your device.
-
-### 4. Select your iPhone and run
-
-1. In the **Xcode toolbar** (top center), open the scheme/destination picker and choose your iPhone
-   — e.g. `Pandita > Tenzin's iPhone`. Do not pick a simulator.
-2. Press **Run** (▶) in the top-left toolbar, or press `Cmd + R`.
-
-The first install may require trusting the developer on the phone:
-
-**Settings → General → VPN & Device Management → [Your Apple ID] → Trust**
-
-### Command line (after signing is set up)
-
-List connected devices:
-
-```bash
-xcrun xctrace list devices
-```
-
-Build for a specific device (replace the UDID):
-
-```bash
-xcodebuild -project Pandita.xcodeproj -scheme Pandita -destination 'platform=iOS,id=YOUR_DEVICE_UDID' build
-```
-
-### Troubleshooting
-
-| Problem | Fix |
-| --- | --- |
-| iPhone not listed in Xcode | Use a data-capable cable, unlock the phone, trust the computer, open **Window → Devices and Simulators** |
-| "Developer Mode required" | Enable Developer Mode on the iPhone (step 1) |
-| Signing / provisioning errors | Set **Team** under Signing & Capabilities; sign in via **Xcode → Settings → Accounts** |
-| "iOS 26.0 or later required" | Update the iPhone to iOS 26 |
-| Untrusted developer | Trust the app under **Settings → General → VPN & Device Management** |
-
-## Build and run (Simulator)
+## Build and run
 
 ```bash
 xcodebuild -project Pandita.xcodeproj -scheme Pandita -destination 'platform=iOS Simulator,name=iPhone 17 Pro' build
@@ -87,12 +28,12 @@ xcodebuild -project Pandita.xcodeproj -scheme Pandita -destination 'platform=iOS
 ```
 Pandita/
   App/            PanditaApp, RootTabView, AppTab
-  Models/         Library → Chapter → Verse (Codable, Sendable)
+  Models/         Library → Chapter → Verse, ReadingLanguage, LocalizedText
   Data/           ContentRepository seam, stores, preview fixtures
-  DesignSystem/   Theme, GlassCard, VerseCard, SaveButton
+  DesignSystem/   Theme, GlassCard, VerseCard, VerseText, SaveButton, LanguageMenu
   Features/       Today, Chapters, Saved — one folder per tab
   Resources/      content.json, Assets.xcassets
-PanditaTests/       Swift Testing suites
+PanditaTests/     Swift Testing suites
 ```
 
 The Xcode target uses a **synchronized folder group**, so anything you drop into `Pandita/` is
@@ -100,33 +41,54 @@ compiled automatically — no `project.pbxproj` edits when adding a file.
 
 ## Content
 
-`Pandita/Resources/content.json` is the entire dataset. Replace its contents with the real text:
+`Pandita/Resources/content.json` is the entire dataset. The models mirror its shape exactly, so
+the file can be regenerated and dropped straight in with no transform step:
 
 ```json
 {
-  "version": 1,
-  "title": "Pandita",
   "chapters": [
     {
-      "id": "ch-01",
-      "number": 1,
-      "title": "The Wise",
-      "subtitle": "Optional",
+      "id": 1,
+      "title": {
+        "tibetan": "ལེའུ་དང་པོ། མཁས་པ་བརྟག་པ།",
+        "english": "Chapter 1 - An Examination of the Wise",
+        "chinese": "第一章 辨智者篇"
+      },
+      "verseRange": { "start": 1, "end": 30 },
       "verses": [
-        { "id": "v-1-1", "number": 1, "text": "…", "commentary": "Optional" }
+        { "id": 1, "chapter": 1, "tibetan": "…", "english": "…", "chinese": "…" }
       ]
     }
   ]
 }
 ```
 
-Two rules:
+Invariants the app relies on, each covered by a test in `ContentDecodingTests`:
 
-- **Verse `id`s must be stable across content revisions.** Bookmarks are stored by id; an id that
-  changes silently loses its bookmark. `SavedStore.savedVerses(in:)` drops ids it can't resolve.
-- Bump `version` if the schema changes, so `BundleContentRepository` can migrate instead of throw.
+- **Verse `id` is the global verse number and must be stable across content revisions.** Bookmarks
+  are stored by it; an id that shifts silently moves someone's bookmark to a different verse.
+  `SavedStore.savedVerses(in:)` drops ids it can't resolve.
+- Ids run `1...n` in reading order, with no gaps or duplicates.
+- `verseRange` matches the first and last verse actually in the chapter, and every verse's
+  `chapter` field matches its parent.
+- No verse or chapter title is missing any of the three languages — there is no fallback path.
 
-`ContentDecodingTests` fails the build if the bundled JSON stops decoding or two verses share an id.
+Regenerate the file and the suite tells you which invariant broke before the app ever ships it.
+
+## Languages
+
+All three languages are always present, so there is no fallback logic. The reader picks a language
+to read in and, optionally, a second shown beneath it — a parallel reading is how this text is
+normally studied, so it is a first-class setting rather than a hidden toggle. Both live in
+`ReadingSettings`, persist across launches, and are reachable from the toolbar on every screen.
+
+The two can never be the same language: choosing the parallel language as the primary one clears
+the parallel slot, rather than hiding the duplicate at render time and letting it spring back.
+
+Each script gets the type treatment it needs — Tibetan is set in Kailasa with a taller line box for
+its stacked glyphs, English in a serif face, Chinese between the two. Search runs across all three
+at once and returns matching verses rather than whole chapters, which is the only useful shape at
+457 verses.
 
 ## Architecture
 
@@ -134,17 +96,18 @@ Two rules:
 `BundleContentRepository`; swapping in a downloaded or generated payload later means writing one new
 conformance and changing the single line in `PanditaApp` that constructs `LibraryStore`.
 
-State is two `@MainActor @Observable` stores injected through the environment, not singletons:
+State is three `@MainActor @Observable` stores injected through the environment, not singletons:
 
 - `LibraryStore` — loads the text once, exposes `idle / loading / loaded / failed`
-- `SavedStore` — bookmark ids, newest first, persisted in `UserDefaults`
+- `SavedStore` — bookmarked verse numbers, newest first, in `UserDefaults`
+- `ReadingSettings` — the reading language and the parallel one
 
 ## Liquid Glass
 
 The app opts *in* to the iOS 26 look by simply building against the iOS 26 SDK — there is no
 `UIDesignRequiresCompatibility` key, and adding one would opt back out.
 
-System containers (tab bar, navigation bars, search field, lists) get glass for free and are
+System containers (tab bar, navigation bars, search field, lists, menus) get glass for free and are
 deliberately left unstyled. Glass is applied by hand only on custom surfaces:
 
 | Where | API |
@@ -158,7 +121,9 @@ deliberately left unstyled. Glass is applied by hand only on custom surfaces:
 ## Notes
 
 - iPhone only (`TARGETED_DEVICE_FAMILY = 1`), portrait. Widen in the target's build settings.
-- Bundle id is `com.tenzindelek.Pandita`. See [Run on a physical iPhone](#run-on-a-physical-iphone) for signing setup.
+- Bundle id is `com.tenzindelek.Pandita`; set `DEVELOPMENT_TEAM` before building to a device.
+- UI chrome ("Verses 1–30", tab titles) stays in the device language while the *text* follows the
+  reading language. Localising the chrome too would be a separate pass.
 - The app icon is a single 1024×1024 image in `AppIcon.appiconset`; iOS 26 derives the light, dark,
   and tinted treatments from it. To art-direct those separately, replace the set with an Icon
   Composer `.icon` file.

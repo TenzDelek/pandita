@@ -34,8 +34,8 @@ struct SaveButton: View {
 
 #Preview {
     HStack(spacing: 12) {
-        SaveButton(verseID: "v-1-1").buttonStyle(.glass)
-        SaveButton(verseID: "v-1-2", showsLabel: true).buttonStyle(.glassProminent)
+        SaveButton(verseID: 1).buttonStyle(.glass)
+        SaveButton(verseID: 2, showsLabel: true).buttonStyle(.glassProminent)
     }
-    .environment(SavedStore.preview(saving: ["v-1-1"]))
+    .environment(SavedStore.preview(saving: [1]))
 }

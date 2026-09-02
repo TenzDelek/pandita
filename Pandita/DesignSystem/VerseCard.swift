@@ -1,15 +1,18 @@
 import SwiftUI
 
-/// A verse rendered on glass, with its bookmark control.
+/// A verse on glass, in the current reading language, with its bookmark control.
 struct VerseCard: View {
     let verse: Verse
-    var showsChapterCaption: String?
+    /// Overrides the default "Verse N" caption, e.g. to name the chapter too.
+    var caption: String?
+
+    @Environment(ReadingSettings.self) private var settings
 
     var body: some View {
         GlassCard {
-            VStack(alignment: .leading, spacing: 10) {
+            VStack(alignment: .leading, spacing: 12) {
                 HStack(alignment: .firstTextBaseline) {
-                    Text(showsChapterCaption ?? "Verse \(verse.number)")
+                    Text(caption ?? "Verse \(verse.id)")
                         .font(.caption.weight(.semibold))
                         .textCase(.uppercase)
                         .foregroundStyle(.secondary)
@@ -19,14 +22,15 @@ struct VerseCard: View {
                         .foregroundStyle(Theme.crimson)
                 }
 
-                Text(verse.text)
-                    .font(.verseBody(19))
-                    .lineSpacing(5)
+                VerseText(text: verse.text(in: settings.primary), language: settings.primary)
 
-                if let commentary = verse.commentary {
-                    Text(commentary)
-                        .font(.footnote)
-                        .foregroundStyle(.secondary)
+                if let secondary = settings.secondary {
+                    Divider().opacity(0.4)
+                    VerseText(
+                        text: verse.text(in: secondary),
+                        language: secondary,
+                        isSecondary: true
+                    )
                 }
             }
         }
@@ -40,5 +44,6 @@ struct VerseCard: View {
         }
         .padding()
     }
-    .environment(SavedStore.preview(saving: ["v-1-1"]))
+    .environment(SavedStore.preview(saving: [1]))
+    .environment(ReadingSettings.preview())
 }

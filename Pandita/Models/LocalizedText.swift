@@ -1,12 +1,7 @@
 import Foundation
 
-/// A single verse, carried in all three languages.
-struct Verse: Identifiable, Hashable, Codable, Sendable {
-    /// Global verse number, 1...457, unique across the whole text and stable
-    /// across content revisions. Bookmarks are stored by this id.
-    let id: Int
-    /// The chapter this verse belongs to, matching `Chapter.id`.
-    let chapter: Int
+/// A string carried in all three languages of the text.
+struct LocalizedText: Hashable, Codable, Sendable {
     let tibetan: String
     let english: String
     let chinese: String

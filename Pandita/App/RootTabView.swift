@@ -26,5 +26,6 @@ struct RootTabView: View {
     RootTabView()
         .environment(LibraryStore.preview())
         .environment(SavedStore.preview())
+        .environment(ReadingSettings.preview())
         .tint(Theme.crimson)
 }
