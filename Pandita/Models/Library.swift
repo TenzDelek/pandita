@@ -26,10 +26,6 @@ extension Library {
         return nil
     }
 
-    func chapter(id: Chapter.ID) -> Chapter? {
-        chapters.first { $0.id == id }
-    }
-
     /// Verses matching `term` in any of the three languages.
     func search(_ term: String, limit: Int = 100) -> [Verse] {
         let term = term.trimmingCharacters(in: .whitespacesAndNewlines)

@@ -7,13 +7,10 @@ struct TodayView: View {
 
     @Namespace private var glassNamespace
     @State private var now = Date.now
+    @State private var showsAuthor = false
 
     private var verse: Verse? {
         DailyVerse.verse(for: now, in: library.library)
-    }
-
-    private var chapter: Chapter? {
-        verse.flatMap { library.library.chapter(id: $0.chapter) }
     }
 
     var body: some View {
@@ -41,6 +38,9 @@ struct TodayView: View {
             // rather than stacking below it.
             .navigationBarTitleDisplayMode(.inline)
             .toolbar { ToolbarItem(placement: .topBarTrailing) { LanguageMenu() } }
+            .sheet(isPresented: $showsAuthor) {
+                AuthorSheet(author: .sakyaPandita)
+            }
         }
     }
 
@@ -50,9 +50,7 @@ struct TodayView: View {
             ScrollView {
                 VStack(spacing: Theme.Metrics.stackSpacing) {
                     hero(for: verse)
-                    if let chapter {
-                        chapterLink(chapter)
-                    }
+                    AuthorCard(author: .sakyaPandita) { showsAuthor = true }
                 }
                 .padding(.horizontal)
                 .padding(.bottom, 32)
@@ -152,31 +150,6 @@ struct TodayView: View {
         }
         parts.append("— Verse \(verse.id), Chapter \(verse.chapter)")
         return parts.joined(separator: "\n\n")
-    }
-
-    private func chapterLink(_ chapter: Chapter) -> some View {
-        NavigationLink(value: chapter) {
-            GlassCard(isInteractive: true) {
-                HStack {
-                    VStack(alignment: .leading, spacing: 4) {
-                        Text("Read the chapter")
-                            .font(.caption.weight(.semibold))
-                            .foregroundStyle(.secondary)
-                        Text(chapter.title.text(in: settings.primary))
-                            .font(settings.primary == .tibetan ? settings.primary.verseFont(size: 16) : .headline)
-                            .lineSpacing(settings.primary == .tibetan ? 8 : 0)
-                            .foregroundStyle(.primary)
-                            .multilineTextAlignment(.leading)
-                    }
-                    Spacer(minLength: 12)
-                    Image(systemName: "chevron.right")
-                        .font(.footnote.weight(.bold))
-                        .foregroundStyle(.tertiary)
-                }
-            }
-        }
-        .buttonStyle(.plain)
-        .navigationDestination(for: Chapter.self) { ChapterDetailView(chapter: $0) }
     }
 }
 
